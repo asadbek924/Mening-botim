@@ -10,8 +10,7 @@ TELEGRAM_TOKEN = "8472607285:AAFt6ay6KpbZBKbUzVVn1Nov-iN1er2ft_g"
 GEMINI_API_KEY = "AIzaSyAT9W7ENvrykGzEVqcvYkrCjzaV8T5OGS8"
 
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
-
+model = genai.GenerativeModel('gemini-pro')
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 
