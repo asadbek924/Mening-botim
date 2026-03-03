@@ -1,70 +1,53 @@
 import asyncio
+import google.generativeai as genai
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
-from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 
-# BOT TOKENNI @BotFather'DAN OLIB SHU YERGA QO'YING
-TOKEN = "8796910876:AAFCBqNyb7l3bqA4E2sIIhvZm49iSd1F0uI"
+# KONFIGURATSIYA
+TELEGRAM_TOKEN = "8796910876:AAFCBqNyb7l3bqA4E2sIIhvZm49iSd1F0uI"
+GEMINI_API_KEY = "AIzaSyAT9W7ENvrykGzEVqcvYkrCjzaV8T5OGS8"
 
-bot = Bot(token=TOKEN)
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash') # Multimedia uchun eng yaxshi model
+
+bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 
-# 1. Asosiy Menyu (Reply Keyboard)
-def main_menu():
-    builder = ReplyKeyboardBuilder()
-    builder.row(types.KeyboardButton(text="🤖 Bot haqida"), types.KeyboardButton(text="📞 Aloqa"))
-    builder.row(types.KeyboardButton(text="🌟 Xizmatlar"))
-    return builder.as_markup(resize_keyboard=True)
-
-# 2. Inline tugmalar
-def inline_menu():
-    builder = InlineKeyboardBuilder()
-    builder.row(types.InlineKeyboardButton(text="Kanalimiz", url="https://t.me/GitHub"))
-    builder.row(types.InlineKeyboardButton(text="Yordam olish", callback_data="help_data"))
-    return builder.as_markup()
-
 @dp.message(CommandStart())
-async def start_cmd(message: types.Message):
-    await message.answer(
-        f"Salom {message.from_user.full_name}! Men universal yordamchiman. "
-        "Menga matn, rasm, video yoki ovozli xabar yuborishingiz mumkin.",
-        reply_markup=main_menu()
-    )
+async def start(message: types.Message):
+    await message.answer("Salom! Men universal AI yordamchiman. Menga matn yozing, rasm yoki ovozli xabar yuboring - hammasini tushunaman! 🤖✨")
 
-# Matnli xabarlarga javob
+# MATNLI XABARLAR UCHUN
 @dp.message(F.text)
-async def text_handler(message: types.Message):
-    if message.text == "🤖 Bot haqida":
-        await message.answer("Men Render hostingida 24/7 ishlovchi aqlli botman!", reply_markup=inline_menu())
-    elif message.text == "📞 Aloqa":
-        await message.answer("Admin bilan bog'lanish: @username")
-    else:
-        await message.answer(f"Siz yozdingiz: {message.text}\nTez orada javob beraman!")
+async def ai_text(message: types.Message):
+    response = model.generate_content(message.text)
+    await message.answer(response.text)
 
-# Rasmlarga javob
+# RASMLAR UCHUN (AI rasmni ko'radi)
 @dp.message(F.photo)
-async def photo_handler(message: types.Message):
-    await message.answer("Ajoyib rasm! Uni qabul qildim va tahlil qilyapman 🖼")
+async def ai_image(message: types.Message):
+    status = await message.answer("Rasmni ko'ryapman... 👀")
+    photo = await bot.get_file(message.photo[-1].file_id)
+    photo_bytes = await bot.download_file(photo.file_path)
+    
+    img = {"mime_type": "image/jpeg", "data": photo_bytes.getvalue()}
+    response = model.generate_content(["Ushbu rasmda nima borligini tushuntirib ber:", img])
+    await status.edit_text(response.text)
 
-# Videolarga javob
-@dp.message(F.video)
-async def video_handler(message: types.Message):
-    await message.answer("Video uchun rahmat! Yuklab olinyapti... 📹")
-
-# Ovozli xabarlarga (Voice) javob
+# OVOZLI XABARLAR UCHUN (AI ovozni eshitadi)
 @dp.message(F.voice)
-async def voice_handler(message: types.Message):
-    await message.answer("Sizning ovozingizni eshitdim, juda tushunarli! 🎙")
-
-# Inline tugma bosilganda
-@dp.callback_query(F.data == "help_data")
-async def help_callback(callback: types.CallbackQuery):
-    await callback.answer("Yordam bo'limi yuklanmoqda...")
-    await callback.message.edit_text("Sizga qanday yordam kerak? Biz barcha turdagi fayllarni qabul qilamiz.")
+async def ai_voice(message: types.Message):
+    status = await message.answer("Ovozingizni eshityapman... 🎙")
+    voice = await bot.get_file(message.voice.file_id)
+    voice_bytes = await bot.download_file(voice.file_path)
+    
+    audio = {"mime_type": "audio/ogg", "data": voice_bytes.getvalue()}
+    response = model.generate_content(["Ushbu ovozli xabarni matnga o'gir va javob ber:", audio])
+    await status.edit_text(response.text)
 
 async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
-                             
+    
