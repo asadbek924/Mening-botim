@@ -1,53 +1,45 @@
 import asyncio
-import google.generativeai as genai
+import os
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
+import google.generativeai as genai
+from aiohttp import web
 
 # KONFIGURATSIYA
-TELEGRAM_TOKEN = "8796910876:AAFCBqNyb7l3bqA4E2sIIhvZm49iSd1F0uI"
+TELEGRAM_TOKEN = "8472607285:AAFt6ay6KpbZBKbUzVVn1Nov-iN1er2ft_g"
 GEMINI_API_KEY = "AIzaSyAT9W7ENvrykGzEVqcvYkrCjzaV8T5OGS8"
 
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash') # Multimedia uchun eng yaxshi model
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 
+# Render uchun kichik veb-server (Port xatosini tuzatadi)
+async def handle(request):
+    return web.Response(text="Bot is running!")
+
 @dp.message(CommandStart())
 async def start(message: types.Message):
-    await message.answer("Salom! Men universal AI yordamchiman. Menga matn yozing, rasm yoki ovozli xabar yuboring - hammasini tushunaman! 🤖✨")
+    await message.answer("Salom! Men aqlli AI botman. Menga xabar yoki rasm yuboring!")
 
-# MATNLI XABARLAR UCHUN
 @dp.message(F.text)
 async def ai_text(message: types.Message):
     response = model.generate_content(message.text)
     await message.answer(response.text)
 
-# RASMLAR UCHUN (AI rasmni ko'radi)
-@dp.message(F.photo)
-async def ai_image(message: types.Message):
-    status = await message.answer("Rasmni ko'ryapman... 👀")
-    photo = await bot.get_file(message.photo[-1].file_id)
-    photo_bytes = await bot.download_file(photo.file_path)
-    
-    img = {"mime_type": "image/jpeg", "data": photo_bytes.getvalue()}
-    response = model.generate_content(["Ushbu rasmda nima borligini tushuntirib ber:", img])
-    await status.edit_text(response.text)
-
-# OVOZLI XABARLAR UCHUN (AI ovozni eshitadi)
-@dp.message(F.voice)
-async def ai_voice(message: types.Message):
-    status = await message.answer("Ovozingizni eshityapman... 🎙")
-    voice = await bot.get_file(message.voice.file_id)
-    voice_bytes = await bot.download_file(voice.file_path)
-    
-    audio = {"mime_type": "audio/ogg", "data": voice_bytes.getvalue()}
-    response = model.generate_content(["Ushbu ovozli xabarni matnga o'gir va javob ber:", audio])
-    await status.edit_text(response.text)
-
 async def main():
+    # Veb serverni ishga tushirish (Render portni ko'rishi uchun)
+    app = web.Application()
+    app.router.add_get("/", handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', int(os.environ.get("PORT", 5000)))
+    
+    print("Bot ishga tushdi...")
+    await site.start()
     await dp.start_polling(bot)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     asyncio.run(main())
     
